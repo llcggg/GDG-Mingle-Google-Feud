@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Google Feud Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f8f9fa;--surface:#fff;--line:#dadce0;--text:#202124;--muted:#5f6368;
+  --blue:#4285f4;--red:#ea4335;--yellow:#fbbc04;--green:#34a853;--bar:#e8f0fe;
+  color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#202124;--surface:#2d2e31;--line:#5f6368;--text:#e8eaed;--muted:#9aa0a6;--bar:#1c2b4a;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#202124;--surface:#2d2e31;--line:#5f6368;--text:#e8eaed;--muted:#9aa0a6;--bar:#1c2b4a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.4}
+main{max-width:640px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:clamp(2rem,8vw,3rem);font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+h1 span:nth-child(1){color:var(--blue)}h1 span:nth-child(2){color:var(--red)}h1 span:nth-child(3){color:var(--yellow)}h1 span:nth-child(4){color:var(--blue)}h1 span:nth-child(5){color:var(--green)}h1 span:nth-child(6){color:var(--red)}
+.sub{color:var(--muted);margin:0 0 12px}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);margin:0 0 16px}
+.status i{width:10px;height:10px;border-radius:50%;background:var(--yellow);display:inline-block}
+.status.live i{background:var(--green)}
+form{display:flex;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:14px}
+label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px;flex:1 1 120px}
+input{font:inherit;font-size:1.1rem;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);width:100%}
+input:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:10px 18px;cursor:pointer;background:var(--blue);color:#fff}
+form button{flex:1 1 100%;font-size:1.05rem;padding:12px}
+button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);padding:6px 12px;font-size:.85rem}
+.pinrow{margin-bottom:12px}
+.msg{min-height:1.4em;margin:10px 4px 0;font-size:.95rem;color:var(--green)}
+.msg.err{color:var(--red)}
+h2{font-size:1.2rem;margin:22px 0 10px}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+li.row{position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);overflow:hidden}
+li.row .fill{position:absolute;inset:0 auto 0 0;background:var(--bar);z-index:0;transition:width .4s ease}
+li.row>*:not(.fill){position:relative;z-index:1}
+.rank{font-weight:800;font-size:1.4rem;width:2ch;color:var(--muted)}
+li.r1 .rank{color:var(--yellow)}
+.who{font-weight:600;font-size:1.2rem;flex:1}
+.pts{font-weight:800;font-size:1.4rem;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);padding:18px;text-align:center;border:1px dashed var(--line);border-radius:16px}
+.log{display:grid;gap:6px;color:var(--muted);font-size:.9rem;margin:0;padding:0;list-style:none}
+.tools{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){li.row .fill{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1 aria-label="Google Feud"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span> Feud</h1>
+  <p class="sub">Enter a player's number and the points they just won. Points add to their total.</p>
+
+  <div class="status" id="status" role="status"><i></i><span>Connecting...</span></div>
+
+  <label class="pinrow">Host PIN (leave blank on the display laptop)
+    <input id="pin" type="password" autocomplete="off" placeholder="PIN">
+  </label>
+
+  <form id="f" autocomplete="off">
+    <label>Player number
+      <input id="num" inputmode="numeric" pattern="[0-9]*" required placeholder="7">
+    </label>
+    <label>Points
+      <input id="pts" inputmode="numeric" pattern="-?[0-9]*" required placeholder="10000">
+    </label>
+    <button type="submit">Add points</button>
+  </form>
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
+
+  <h2>Top 5</h2>
+  <ol id="top"></ol>
+
+  <div class="tools">
+    <button class="ghost" id="undo" type="button">Undo last entry</button>
+    <button class="ghost" id="reset" type="button">Reset all scores</button>
+  </div>
+
+  <h2>Recent entries</h2>
+  <ul class="log" id="log"></ul>
+</main>
+
+<script>
+(function(){
+  var KEY="feud-entries-v1";
+  var entries=[],col=null;
+  function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(entries));}catch(e){}}
+  var $=function(id){return document.getElementById(id)};
+  var msg=$("msg");
+  function say(t,err){msg.textContent=t;msg.className="msg"+(err?" err":"");}
+  function setStatus(live){
+    var st=$("status");st.className="status"+(live?" live":"");
+    st.lastChild.textContent=live?"Live: refreshes every 2 seconds":"Cannot reach the server. Retrying...";
+  }
+  setStatus(false);
+  function totals(){
+    var m={};
+    entries.forEach(function(e){m[e.n]=(m[e.n]||0)+e.p;});
+    return Object.keys(m).map(function(k){return{n:k,t:m[k]}}).sort(function(a,b){return b.t-a.t||Number(a.n)-Number(b.n)});
+  }
+  function fmt(n){return n.toLocaleString("en-US")}
+  function render(){
+    var all=totals(),top=all.slice(0,5),max=top.length?Math.max(top[0].t,1):1;
+    var ol=$("top");ol.innerHTML="";
+    if(!top.length){var d=document.createElement("div");d.className="empty";d.textContent="No scores yet. Add the first entry above.";ol.appendChild(d);}
+    var rank=0,prev=null;
+    top.forEach(function(p,i){
+      if(p.t!==prev){rank=i+1;prev=p.t;}
+      var li=document.createElement("li");li.className="row r"+rank;
+      var f=document.createElement("div");f.className="fill";f.style.width=Math.max(0,p.t/max*100)+"%";
+      var r=document.createElement("span");r.className="rank";r.textContent=rank;
+      var w=document.createElement("span");w.className="who";w.textContent="Player "+p.n;
+      var s=document.createElement("span");s.className="pts";s.textContent=fmt(p.t);
+      li.append(f,r,w,s);ol.appendChild(li);
+    });
+    var log=$("log");log.innerHTML="";
+    entries.slice(-5).reverse().forEach(function(e){
+      var li=document.createElement("li");
+      li.textContent="Player "+e.n+": "+(e.p>=0?"+":"")+fmt(e.p);log.appendChild(li);
+    });
+    if(!entries.length){var li=document.createElement("li");li.textContent="Nothing yet.";log.appendChild(li);}
+  }
+  var pin="";
+  try{pin=localStorage.getItem("feud-pin")||"";}catch(e){}
+  $("pin").value=pin;
+  $("pin").addEventListener("change",function(){
+    pin=$("pin").value.trim();
+    try{localStorage.setItem("feud-pin",pin);}catch(e){}
+  });
+  function api(body){
+    return fetch("/api/scores",{method:"POST",headers:{"Content-Type":"application/json","x-host-pin":pin},body:JSON.stringify(body)})
+      .then(function(r){
+        if(r.status===401)throw new Error("Wrong or missing host PIN.");
+        if(!r.ok)throw new Error("Server error. Try again.");
+        return r.json();
+      });
+  }
+  function fail(e){say(e.message||"Could not save. Try again.",true);}
+  function pull(){
+    return fetch("/api/scores",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+      entries=d.entries||[];setStatus(true);render();
+    }).catch(function(){setStatus(false);});
+  }
+  $("f").addEventListener("submit",function(ev){
+    ev.preventDefault();
+    var n=$("num").value.trim(),p=parseInt($("pts").value,10);
+    if(!/^\d+$/.test(n)){say("Player number must be digits only.",true);return;}
+    if(isNaN(p)){say("Points must be a whole number.",true);return;}
+    n=String(parseInt(n,10));
+    api({action:"add",n:n,p:p}).then(function(){say("Added "+fmt(p)+" points to Player "+n+".");return pull();}).catch(fail);
+    $("num").value="";$("pts").value="";$("num").focus();
+  });
+  $("undo").addEventListener("click",function(){
+    api({action:"undo"}).then(function(){say("Removed the last entry.");return pull();}).catch(fail);
+  });
+  $("reset").addEventListener("click",function(){
+    if(!confirm("Clear every score on every laptop? This cannot be undone."))return;
+    api({action:"reset"}).then(function(){say("All scores cleared.");return pull();}).catch(fail);
+  });
+  render();pull();
+  setInterval(function(){if(!document.hidden)pull();},2000);
+})();
+</script>
+</body>
+</html>
